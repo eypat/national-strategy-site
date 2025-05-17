@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>National Strategy Dashboard</title>
+
+  <!-- Papa Parse + Chart.js from free CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script> <!-- :contentReference[oaicite:3]{index=3} -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- :contentReference[oaicite:4]{index=4} -->
+
+  <style>
+    body{font-family:sans-serif;margin:2rem;max-width:900px}
+    canvas{max-width:100%}
+  </style>
+</head>
+<body>
+  <h1>National Strategy Progress</h1>
+  <canvas id="progressChart"></canvas>
+
+  <script>
+    /* === 1.  point to your CSV feed =========================== */
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/<ID>/pub?output=csv';
+    /* === 2.  fetch & parse it with Papa ======================== */
+    Papa.parse(CSV_URL,{
+      download:true,
+      header:true,        // first row → field names
+      dynamicTyping:true, // convert numbers automatically
+      complete: results => {
+        /* === 3.  massage the data for Chart.js ================ */
+        const labels = results.data.map(r => r.Target);
+        const values = results.data.map(r => r.Progress);
+        /* === 4.  draw the chart  ============================== */
+        new Chart(document.getElementById('progressChart'),{
+          type:'bar',
+          data:{
+            labels,
+            datasets:[{
+              label:'% complete',
+              data:values,
+              borderWidth:1
+            }]
+          },
+          options:{
+            responsive:true,
+            scales:{ y:{ beginAtZero:true, max:100 } }
+          }
+        });
+      },
+      error: err => console.error(err)
+    });
+  </script>
+</body>
+</html>
