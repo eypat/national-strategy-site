@@ -14,11 +14,18 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Button,
+    Dialog, DialogTitle, DialogContent, DialogActions,
+  FormControlLabel, Checkbox
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { groupBy } from "lodash";
-
+import SearchIcon from '@mui/icons-material/Search';   // add at top
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import autoTable from 'jspdf-autotable';
 /**
  * ------------------------------------------------------------------
  * 0  | CONFIG
@@ -29,7 +36,6 @@ const XLSX_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/expor
 
 const LIGHT_BLUE = "#E3F2FD"; // background for rows that contain the tag "blue"
 const FALLBACK_BG = "#e0e0e0"; // neutral when no colour is supplied in Config
-
 // Helper – safe trim
 const trim = (v) => (typeof v === "string" ? v.trim() : v);
 
@@ -38,7 +44,20 @@ const trim = (v) => (typeof v === "string" ? v.trim() : v);
  * 1  | Helpers
  * ------------------------------------------------------------------
  */
+const title = (s) =>
+  trim(s).replace(/\b\w+\b/g, (word) => {
+    const lower = word.toLowerCase();
+    if (lower === "it") return "IT";                     // special case
+    if (lower === "nc") return "NC";                     // special case
+    if (lower === "ic") return "IC";                     // special case
+    if (lower === "pr") return "PR";                     // special case
+    if (lower === "hr") return "HR";                     // special case
+    if (lower === "ue") return "UE";                     // special case
 
+
+
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  });
 const norm = (s) => trim(s).toLowerCase();          // unify case/space
 const hex   = (c) => c.startsWith("#") ? c : `#${c}`; // add “#” if missing
 
@@ -58,6 +77,11 @@ function sheetToRows(sheet) {
     return obj;
   });
 }
+const filteredRows = (rowsArr) =>
+  rowsArr.filter((r) => {
+    /* same three checks you have in useMemo,
+       just replace rows with rowsArr          */
+  });
 
 /**
  * ------------------------------------------------------------------
@@ -77,7 +101,71 @@ export default function EnhancedDashboard() {
   const [tags, setTags] = useState([]);
   const [tagOptions, setTagOptions] = useState([]);
   const [tagColours, setTagColours] = useState(new Map()); // C‑name ➜ B‑hex
+  const [query, setQuery] = useState('');
+  
+const [openExport, setOpenExport] = useState(false);
+const [inclFilters, setInclFilters] = useState(true);   // default = honour filters
 
+  const hasSame = (arr, raw) =>
+  arr.some((x) => norm(x) === norm(raw));
+
+  const togglePortfolio = useCallback(
+  (rawLabel) =>
+    setPortfolios((prev) =>
+        hasSame(prev, rawLabel)
+        ? prev.filter((p) => norm(p) !== norm(rawLabel))
+        : [...prev, rawLabel]
+    ),
+  []
+);
+
+const toggleTag = useCallback(
+  (rawLabel) =>
+    setTags((prev) =>
+        hasSame(prev, rawLabel)
+        ? prev.filter((t) => norm(t) !== norm(rawLabel))
+        : [...prev, rawLabel]
+    ),
+  []
+);
+
+function handleExport(applyFilters) {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  tabs.forEach((tabName, idx) => {
+    // 1.  collect rows for this tab
+    const allRows    = rowsByTab[tabName];
+    const tableRows  = applyFilters ? filteredRows(allRows) : allRows;  // reuse your same filter fn
+    if (!tableRows.length) return;                                      // skip empty pillar
+
+    // 2.  work out the columns once
+    if (idx === 0) doc.setFontSize(18);
+    doc.text(tabName, 40, idx === 0 ? 60 : doc.internal.pageSize.getHeight() - 740);
+
+    const tableCols = columns.map((c) => ({ header: c.headerName, dataKey: c.field }));
+
+    autoTable(doc, {
+      startY: idx === 0 ? 80 : undefined,   // after the pillar header
+      head: [tableCols.map((c) => c.header)],
+      body: tableRows.map((r) => tableCols.map((c) => r[c.dataKey])),
+      styles: { fontSize: 8, overflow: 'linebreak', cellWidth: 'wrap' },
+      theme: 'grid',
+      margin: { left: 40, right: 40 },
+      didDrawPage: (d) => {
+        // page footer
+        doc.setFontSize(10);
+        doc.text(`Page ${doc.getNumberOfPages()}`, pageWidth - 60, doc.internal.pageSize.getHeight() - 20);
+      },
+      addPageContent: idx !== 0,            // create new page per pillar
+      showHead: 'everyPage'
+    });
+
+    if (idx < tabs.length - 1) doc.addPage();   // make space for next pillar
+  });
+
+  doc.save(applyFilters ? 'strategy_filtered.pdf' : 'strategy_all.pdf');
+}
   // ---------------------------------------------------------------
   // 2.1 | Load workbook & derive look‑ups
   // ---------------------------------------------------------------
@@ -143,16 +231,29 @@ export default function EnhancedDashboard() {
   // ---------------------------------------------------------------
   const filtered = useMemo(() => {
     return rows.filter((r) => {
-      const portfolio = trim(r.Portfolio).toLowerCase();
+    const rowPortfolios = String(r.Portfolio)      // ← singular
+        .split(",")
+        .map((p) => norm(p)); 
+    if (
+      portfolios.length &&                         // at least one chip picked
+      !portfolios.map(norm).some((p) => rowPortfolios.includes(p))
+    ) return false;
       const rowTags = String(r.Tags)
         .split(",")
         .map((t) => trim(t.toLowerCase()));
 
-      if (portfolios.length && !portfolios.map((p) => p.toLowerCase()).includes(portfolio)) return false;
       if (tags.length && !tags.map((t) => t.toLowerCase()).some((t) => rowTags.includes(t))) return false;
+            
+      if (
+        query &&
+          !Object.values(r)                       
+            .some((v) =>
+              String(v).toLowerCase().includes(query.toLowerCase())
+            )
+        ) return false;
       return true;
     });
-  }, [rows, portfolios, tags]);
+  }, [rows, portfolios, tags, query]);
 
   // ---------------------------------------------------------------
   // 2.3 | Grouping – extract first two numeric levels
@@ -211,18 +312,33 @@ export default function EnhancedDashboard() {
         };
 
         // Portfolio ➜ coloured chip
-        if (field === "Portfolio") {
-          col.renderCell = (params) => (
-            <Chip
-              label={params.value}
-              size="small"
-            sx={{
-              bgcolor: portfolioColours.get(norm(params.value)) || FALLBACK_BG,
-              color: "#000",
-            }}            />
-          );
-          col.width = 180;
-        }
+        if (field === 'Portfolio') {
+            col.renderCell = (params) => {
+              const ports = String(params.value)
+                .split(',')
+                .map((p) => norm(p))
+                .filter(Boolean);
+
+              return (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {ports.map((p) => (
+                    <Chip
+                      key={p}
+                      label={title(p)}
+                      clickable
+                      onClick={() => togglePortfolio(p)}
+                      size="small"
+                      sx={{
+                        bgcolor: portfolioColours.get(p) || FALLBACK_BG,
+                        color: '#000',
+                      }}
+                    />
+                  ))}
+                </Box>
+              );
+            };
+            col.minWidth = 260;
+          }
 
         // Tags ➜ coloured chips list
         if (field === "Tags") {
@@ -234,8 +350,13 @@ export default function EnhancedDashboard() {
             return (
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                 {tagsArr.map((t, i) => (
-                <Chip key={t} label={t} size="small"
-                  sx={{ bgcolor: tagColours.get(t) || FALLBACK_BG, color: "#000" }} 
+                <Chip 
+                key={t} 
+                label={title(t)} 
+                size="small"
+                clickable
+                onClick={() => toggleTag(t)}
+                sx={{ bgcolor: tagColours.get(t) || FALLBACK_BG, color: "#000" }} 
                 />                
       ))}
               </Box>
@@ -295,7 +416,35 @@ export default function EnhancedDashboard() {
       <Typography variant="h4" gutterBottom>
         National Strategy Dashboard
       </Typography>
-
+       {/* <Button
+          variant="outlined"
+          size="small"
+          startIcon={<PictureAsPdfIcon />}
+          onClick={() => setOpenExport(true)}
+          sx={{ml: 'auto'}}
+        >
+          Export PDF
+        </Button> */}
+        <Dialog open={openExport} onClose={() => setOpenExport(false)} maxWidth="xs" fullWidth>
+          <DialogTitle>Export options</DialogTitle>
+          <DialogContent>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={inclFilters}
+                  onChange={(e) => setInclFilters(e.target.checked)}
+                />
+              }
+              label="Apply current filters (Portfolios, Tags, Search)"
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenExport(false)}>Cancel</Button>
+            <Button variant="contained" onClick={() => { handleExport(inclFilters); setOpenExport(false); }}>
+              Generate PDF
+            </Button>
+          </DialogActions>
+        </Dialog>
       {/* Sheet Tabs */}
       {!loading && (
         <Tabs
@@ -338,7 +487,14 @@ export default function EnhancedDashboard() {
               size="small"
               options={portfolioOptions}
               value={portfolios}
-              onChange={(_, v) => setPortfolios(v)}
+              onChange={(_, v) =>
+                setPortfolios(
+                  v.filter(
+                    (val, i, arr) =>
+                      arr.findIndex((x) => norm(x) === norm(val)) === i  // keep first hit
+                  )
+                )
+              }              
               sx={{ minWidth: 240 }}
               renderTags={() => null}
               renderInput={(params) => (
@@ -354,11 +510,18 @@ export default function EnhancedDashboard() {
               size="small"
               options={tagOptions}
               value={tags}
-              onChange={(_, v) => setTags(v)}
-              sx={{ minWidth: 240 }}
+              onChange={(_, v) =>
+                  setTags(
+                    v.filter(
+                      (val, i, arr) =>
+                        arr.findIndex((x) => norm(x) === norm(val)) === i  // keep first hit
+                    )
+                  )
+                }              
+                sx={{ minWidth: 240 }}
                 renderTags={() => null}                
                 renderInput={(params) => (
-                  <TextField {...params} label="Tags" placeholder="Select…" />
+              <TextField {...params} label="Tags" placeholder="Select…" />
   )}
             />
             <Box
@@ -373,7 +536,7 @@ export default function EnhancedDashboard() {
               {portfolios.map((p) => (
                 <Chip
                   key={`port-${p}`}
-                  label={p}
+                  label={title(p)}
                   onDelete={() =>
                     setPortfolios((prev) => prev.filter((name) => name !== p))
                   }
@@ -388,7 +551,7 @@ export default function EnhancedDashboard() {
               {tags.map((t) => (
                 <Chip
                   key={`tag-${t}`}
-                  label={t}
+                  label={title(t)}
                   onDelete={() =>
                     setTags((prev) => prev.filter((name) => name !== t))
                   }
@@ -399,7 +562,18 @@ export default function EnhancedDashboard() {
                 />
               ))}
             </Box>
-            
+            <TextField
+              size="small"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              sx={{ ml: 'auto', width: 260 }}
+              InputProps={{
+                startAdornment: (
+                  <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                ),
+              }}
+            />
           </Paper>
 
           {/* Tables by Category */}
