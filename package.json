@@ -22,7 +22,7 @@
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },
-  "homepage": "https://eypat.github.io/natstrat-dashboard",
+  "homepage": "https://eypat.github.io/national-strategy-site/" ,
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
