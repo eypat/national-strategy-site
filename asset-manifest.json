@@ -1,8 +1,8 @@
 {
   "files": {
-    "main.js": "/natstrat-dashboard/static/js/main.1b4224bb.js",
-    "index.html": "/natstrat-dashboard/index.html",
-    "main.1b4224bb.js.map": "/natstrat-dashboard/static/js/main.1b4224bb.js.map"
+    "main.js": "/national-strategy-site/static/js/main.1b4224bb.js",
+    "index.html": "/national-strategy-site/index.html",
+    "main.1b4224bb.js.map": "/national-strategy-site/static/js/main.1b4224bb.js.map"
   },
   "entrypoints": [
     "static/js/main.1b4224bb.js"
