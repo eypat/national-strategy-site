@@ -1,10 +1,16 @@
 {
   "files": {
-    "main.js": "/national-strategy-site/static/js/main.1b4224bb.js",
+    "main.js": "/national-strategy-site/static/js/main.2e223a8b.js",
+    "static/js/239.dd376a9f.chunk.js": "/national-strategy-site/static/js/239.dd376a9f.chunk.js",
+    "static/js/977.f43ec7bb.chunk.js": "/national-strategy-site/static/js/977.f43ec7bb.chunk.js",
+    "static/js/455.7654cc35.chunk.js": "/national-strategy-site/static/js/455.7654cc35.chunk.js",
     "index.html": "/national-strategy-site/index.html",
-    "main.1b4224bb.js.map": "/national-strategy-site/static/js/main.1b4224bb.js.map"
+    "main.2e223a8b.js.map": "/national-strategy-site/static/js/main.2e223a8b.js.map",
+    "239.dd376a9f.chunk.js.map": "/national-strategy-site/static/js/239.dd376a9f.chunk.js.map",
+    "977.f43ec7bb.chunk.js.map": "/national-strategy-site/static/js/977.f43ec7bb.chunk.js.map",
+    "455.7654cc35.chunk.js.map": "/national-strategy-site/static/js/455.7654cc35.chunk.js.map"
   },
   "entrypoints": [
-    "static/js/main.1b4224bb.js"
+    "static/js/main.2e223a8b.js"
   ]
 }
