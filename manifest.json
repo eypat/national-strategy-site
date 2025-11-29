@@ -1,21 +1,21 @@
 {
-  "short_name": "nat-strat",
-  "name": "The National Strategy 2025-2030",
+  "short_name": "React App",
+  "name": "Create React App Sample",
   "icons": [
     {
-      "src": "eyp_at_logo.ico",
+      "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
     },
     {
-      "src": "eyp_at_logo_192.png",
+      "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x109"
+      "sizes": "192x192"
     },
     {
-      "src": "eyp_at_logo_512.png",
+      "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x290"
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
